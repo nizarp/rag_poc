@@ -6,7 +6,7 @@ from urllib.parse import urljoin, urlparse
 # ----------------------
 # Configuration
 # ----------------------
-base_url = "https://avrioc.com"
+base_url = "https://my-website.com"
 output_dir = "docs"
 max_depth = 2  # You can increase this for deeper crawls
 
