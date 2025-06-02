@@ -34,8 +34,8 @@ for filename in os.listdir(docs_dir):
 # -----------------------
 # Embeddings + Vector Store
 # -----------------------
-embed_model = HuggingFaceEmbedding(model_name="all-MiniLM-L6-v2")
-faiss_index = faiss.IndexFlatL2(384)
+embed_model = HuggingFaceEmbedding(model_name="all-MiniLM-L6-v2", normalize=True)
+faiss_index = faiss.IndexFlatIP(384)
 vector_store = FaissVectorStore(faiss_index=faiss_index)
 storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
@@ -65,42 +65,43 @@ Settings.chunk_size = 512
 parser = SentenceSplitter(chunk_size=512)
 nodes = parser.get_nodes_from_documents(file_docs)
 
-# 🟡 Apply manual boosts based on filename
-for node in nodes:
-    filename = node.metadata.get("filename", "").lower()
-    if "product" in filename or "service" in filename:
-        node.metadata["boost"] = 1.5
-    else:
-        node.metadata["boost"] = 1.0
-
 # -----------------------
 # Build the Index
 # -----------------------
 index = VectorStoreIndex(nodes, storage_context=storage_context)
-query_engine = index.as_query_engine()
+query_engine = index.as_query_engine(similarity_top_k=2)
 
 # -----------------------
 # Query Endpoint
 # -----------------------
 @app.post("/query")
 async def query_api(query: Query):
-    response = query_engine.query(query.question)
+    # Step 1: Rewrite the query using LLM
+    rewrite_prompt = f"Rewrite this query to make it clearer and grammatically correct: {query.question}"
+    rewritten_query = llm.complete(rewrite_prompt).text.strip()
 
-    # Apply boosted score sorting
-    ranked_sources = sorted(
-        response.source_nodes,
-        key=lambda n: n.score * n.node.metadata.get("boost", 1.0),
-        reverse=True
-    )
+    print(rewritten_query)
+
+    # Step 2: Perform RAG using rewritten query
+    response = query_engine.query(rewritten_query)
+
+    print(response.source_nodes);
+
+    if not response.source_nodes or response.source_nodes[0].score < 0.5:
+        fallback_response = llm.complete(query.question)
+        return {
+            "response": fallback_response.text.strip(),
+            "sources": []
+        }
 
     return {
         "response": str(response),
         "sources": [
             {
                 "filename": node.node.metadata.get("filename", "unknown"),
-                "boosted_score": round(node.score * node.node.metadata.get("boost", 1.0), 4),
+                "score": round(node.score, 4),
                 "snippet": node.node.text[:200] + "..."
             }
-            for node in ranked_sources
+            for node in response.source_nodes
         ]
     }
