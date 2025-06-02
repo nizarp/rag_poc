@@ -10,6 +10,7 @@ from llama_index.core.settings import Settings
 from llama_index.core.schema import Document
 import faiss
 import os
+import sys
 
 # -----------------------
 # Initialize FastAPI
@@ -76,32 +77,32 @@ query_engine = index.as_query_engine(similarity_top_k=2)
 # -----------------------
 @app.post("/query")
 async def query_api(query: Query):
-    # Step 1: Rewrite the query using LLM
-    rewrite_prompt = f"Rewrite this query to make it clearer and grammatically correct: {query.question}"
-    rewritten_query = llm.complete(rewrite_prompt).text.strip()
+    try:
+        # Perform RAG using query
+        response = query_engine.query(query.question)
 
-    print(rewritten_query)
+        if not response.source_nodes or response.source_nodes[0].score < 0.2:
+            fallback_response = llm.complete(query.question)
+            return {
+                "response": fallback_response.text.strip(),
+                "sources": []
+            }
 
-    # Step 2: Perform RAG using rewritten query
-    response = query_engine.query(rewritten_query)
-
-    print(response.source_nodes);
-
-    if not response.source_nodes or response.source_nodes[0].score < 0.5:
+        return {
+            "response": str(response),
+            "sources": [
+                {
+                    "filename": node.node.metadata.get("filename", "unknown"),
+                    "score": round(node.score, 4),
+                    "snippet": node.node.text[:200] + "..."
+                }
+                for node in response.source_nodes
+            ]
+        }
+    except Exception as e:
+        print(f"❌ RAG failed: {e}")
         fallback_response = llm.complete(query.question)
         return {
             "response": fallback_response.text.strip(),
             "sources": []
         }
-
-    return {
-        "response": str(response),
-        "sources": [
-            {
-                "filename": node.node.metadata.get("filename", "unknown"),
-                "score": round(node.score, 4),
-                "snippet": node.node.text[:200] + "..."
-            }
-            for node in response.source_nodes
-        ]
-    }
