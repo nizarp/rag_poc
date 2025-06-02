@@ -1,14 +1,19 @@
 import os
 import requests
+import argparse
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
 # ----------------------
-# Configuration
+# Argument Parsing
 # ----------------------
-base_url = "https://my-website.com"
+parser = argparse.ArgumentParser(description="Website Crawler for Text Extraction")
+parser.add_argument("url", help="Base URL of the website to crawl (e.g., https://example.com)")
+args = parser.parse_args()
+
+base_url = args.url.rstrip("/")
 output_dir = "docs"
-max_depth = 2  # You can increase this for deeper crawls
+max_depth = 2
 
 visited = set()
 os.makedirs(output_dir, exist_ok=True)
@@ -21,7 +26,6 @@ def is_internal(url):
     return url.startswith("/") or url.startswith(base_url)
 
 def normalize_url(url):
-    # Join relative URLs and clean fragments/trailing slashes
     full_url = urljoin(base_url, url.split("#")[0])
     return full_url.rstrip("/")
 
@@ -68,7 +72,6 @@ def crawl(url, depth=0):
         else:
             print(f"🔁 Skipped (already saved): {filename}")
 
-        # Recursively crawl all internal links
         for a_tag in soup.find_all("a", href=True):
             link = a_tag["href"]
             if is_internal(link):
