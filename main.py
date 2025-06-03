@@ -11,6 +11,7 @@ from llama_index.core.schema import Document
 import faiss
 import os
 import sys
+import torch
 
 # -----------------------
 # Initialize FastAPI
@@ -43,13 +44,16 @@ storage_context = StorageContext.from_defaults(vector_store=vector_store)
 # -----------------------
 # LLM: Quantized Mistral
 # -----------------------
+use_gpu = torch.cuda.is_available()
+n_gpu_layers = 40 if use_gpu else 0
+
 llm = LlamaCPP(
     model_path="./models/mistral-7b-instruct-v0.1.Q4_K_M.gguf",
     temperature=0.7,
     max_new_tokens=512,
     context_window=2048,
     generate_kwargs={"top_p": 0.95, "frequency_penalty": 0},
-    model_kwargs={"n_gpu_layers": 0},
+    model_kwargs={"n_gpu_layers": n_gpu_layers},
     verbose=True,
 )
 
