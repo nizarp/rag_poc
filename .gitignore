@@ -1,4 +1,7 @@
 models/mistral-7b-instruct-v0.1.Q4_K_M.gguf
 !models/.gitkeep
-docs/.DS_Store
+docs/*
 !docs/.gitkeep
+crawl_mywhoosh.py
+__pycache__/
+.DS_Store

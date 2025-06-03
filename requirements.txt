@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+llama-index
+llama-cpp-python
+faiss-cpu
+transformers
+sentence-transformers
+beautifulsoup4
+requests
+pydantic

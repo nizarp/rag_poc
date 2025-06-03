@@ -1,8 +1,9 @@
-version: '3.8'
+version: "3.9"
 
 services:
-  rag-api:
+  rag-app:
     build: .
+    container_name: rag-container
     ports:
       - "8000:8000"
     volumes:
@@ -10,4 +11,3 @@ services:
       - ./models:/app/models
     environment:
       - PYTHONUNBUFFERED=1
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
